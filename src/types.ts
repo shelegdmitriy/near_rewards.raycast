@@ -63,7 +63,6 @@ export interface AccountData {
   };
 }
 
-
 export interface PriceInfo {
   near_usd: number;
   timestamp: number;

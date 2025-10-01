@@ -1,10 +1,11 @@
 import { Account } from "@near-js/accounts";
 import { JsonRpcProvider, FailoverRpcProvider } from "@near-js/providers";
 import { NEAR } from "@near-js/tokens";
-import { formatNearAmount } from "@near-js/utils";
 import { AccountInPoolResult } from "./types";
 import type { BlockResult, EpochValidatorInfo, BlockReference } from "@near-js/types";
 import type { AccountState } from "@near-js/accounts/lib/commonjs/account.cjs";
+
+const EPOCH_LENGTH = 43200; // The average number of blocks in an epoch on NEAR
 
 export class NearRewardsClient {
   private provider: JsonRpcProvider | FailoverRpcProvider;
@@ -22,9 +23,7 @@ export class NearRewardsClient {
         "https://near.lava.build",
       ];
 
-      this.provider = new FailoverRpcProvider(
-        endpoints.map(url => new JsonRpcProvider({ url }))
-      );
+      this.provider = new FailoverRpcProvider(endpoints.map((url) => new JsonRpcProvider({ url })));
     }
   }
 
@@ -48,23 +47,17 @@ export class NearRewardsClient {
    * @param blockHeight - Optional block height to query historical balance
    * @returns A Promise that resolves to the account balance in yoctoNEAR as a bigint
    */
-  async getNativeBalance(accountId: string, blockId?: number): Promise<bigint> {
+  async getNativeBalance(accountId: string, blockId: number): Promise<bigint> {
     try {
-      if (blockId) {
-        const result = await this.provider.query({
-          request_type: "view_account",
-          account_id: accountId,
-          block_id: blockId,
-        });
-        const accountInfo = result as unknown as { amount: string };
-        return BigInt(accountInfo.amount);
-      } else {
-        const account = await this.getAccount(accountId);
-        const balance = await account.getBalance(NEAR);
-        return balance;
-      }
+      const result = await this.provider.query({
+        request_type: "view_account",
+        account_id: accountId,
+        block_id: blockId,
+      });
+      const accountInfo = result as unknown as { amount: string };
+      return BigInt(accountInfo.amount);
     } catch (error) {
-      console.error(`Error fetching native balance for ${accountId}${blockId ? ` at block ${blockId}` : ''}:`, error);
+      console.error(`Error fetching native balance for ${accountId}${blockId ? ` at block ${blockId}` : ""}:`, error);
       throw error;
     }
   }
@@ -88,23 +81,16 @@ export class NearRewardsClient {
    * @param accountId - The lockup contract account ID to query
    * @returns A Promise that resolves to the locked amount in yoctoNEAR as a bigint, or 0 for regular accounts
    */
-  async getLockedAmount(accountId: string): Promise<bigint> {
+  async getLockedAmount(accountId: string, blockHeight: number): Promise<bigint> {
     try {
-      // Check if this is a contract account first
       const isContractAccount = await this.isContract(accountId);
       if (!isContractAccount) {
         return BigInt(0);
       }
 
-      const result = await this.provider.callFunction(
-        accountId,
-        "get_locked_amount",
-        {}
-      )
-      console.log(`Locked amount for ${accountId}:`, result);
+      const result = await this.provider.callFunction(accountId, "get_locked_amount", {}, { blockId: blockHeight });
       return BigInt(result as string);
     } catch (error: unknown) {
-      // Log unexpected errors (should be rare now that we check isContract first)
       console.error(`Unexpected error getting locked amount for ${accountId}:`, error);
       return BigInt(0);
     }
@@ -117,9 +103,8 @@ export class NearRewardsClient {
    * @param accountId - The lockup contract account ID to query
    * @returns A Promise that resolves to the liquid balance in yoctoNEAR as a bigint
    */
-  async getLiquidOwnersBalance(accountId: string): Promise<bigint> {
+  async getLiquidOwnersBalance(accountId: string, blockHeight: number): Promise<bigint> {
     try {
-      // Check if this is a contract account first
       const isContractAccount = await this.isContract(accountId);
       if (!isContractAccount) {
         return BigInt(0);
@@ -128,23 +113,27 @@ export class NearRewardsClient {
       const result = await this.provider.callFunction(
         accountId,
         "get_liquid_owners_balance",
-        {}
+        {},
+        { blockId: blockHeight },
       );
-      console.log(`Liquid owners balance for ${accountId}:`, result);
       return BigInt(result as string);
     } catch (error: unknown) {
-      // Log unexpected errors (should be rare now that we check isContract first)
       console.error(`Unexpected error getting liquid owners balance for ${accountId}:`, error);
       return BigInt(0);
     }
   }
 
-  async getAccountInPool(accountId: string, poolAccountId: string): Promise<AccountInPoolResult | null> {
+  async getAccountInPool(
+    accountId: string,
+    poolAccountId: string,
+    blockHeight: number,
+  ): Promise<AccountInPoolResult | null> {
     try {
       const result = await this.provider.callFunction(
         poolAccountId,
         "get_account",
-        { account_id: accountId }
+        { account_id: accountId },
+        { blockId: blockHeight },
       );
       return result as AccountInPoolResult;
     } catch (error) {
@@ -163,18 +152,13 @@ export class NearRewardsClient {
    */
   async getStakingPoolAccountId(accountId: string): Promise<string | null> {
     try {
-      // Check if this is a contract account first
       const isContractAccount = await this.isContract(accountId);
       if (!isContractAccount) {
         return null;
       }
 
-      const result = await this.provider.callFunction(
-        accountId,
-        "get_staking_pool_account_id",
-        {}
-      );
-      // NEAR returns contract call result as Uint8Array or Buffer
+      const result = await this.provider.callFunction(accountId, "get_staking_pool_account_id", {});
+
       if (result && (result instanceof Uint8Array || Buffer.isBuffer(result))) {
         return Buffer.from(result).toString("utf-8");
       }
@@ -183,7 +167,6 @@ export class NearRewardsClient {
       }
       return null;
     } catch (error: unknown) {
-      // Log unexpected errors (should be rare now that we check isContract first)
       console.error("Error getting staking pool account ID:", error);
       return null;
     }
@@ -191,8 +174,7 @@ export class NearRewardsClient {
 
   async getValidators(): Promise<EpochValidatorInfo> {
     try {
-      const result = await this.provider.validators(null);
-      return result;
+      return await this.provider.validators(null);
     } catch (error) {
       console.error("Error fetching validators:", error);
       throw error;
@@ -201,8 +183,7 @@ export class NearRewardsClient {
 
   async getBlock(blockId: BlockReference): Promise<BlockResult> {
     try {
-      const result = await this.provider.block(blockId);
-      return result;
+      return await this.provider.block(blockId);
     } catch (error) {
       console.error(`Error fetching block ${blockId}:`, error);
       throw error;
@@ -211,8 +192,7 @@ export class NearRewardsClient {
 
   async getFinalBlock(): Promise<BlockResult> {
     try {
-      const result = await this.getBlock({ finality: "final" });
-      return result;
+      return await this.getBlock({ finality: "final" });
     } catch (error) {
       console.error("Error fetching final block:", error);
       throw error;
@@ -247,15 +227,21 @@ export class NearRewardsClient {
 }
 
 // Utility functions using NEAR API utilities
-export function getNearAmount(amount: bigint): number {
-  // Use the official NEAR formatNearAmount utility
-  const nearAmount = formatNearAmount(amount.toString());
-  return parseFloat(nearAmount);
+export function getNearAmount(amount: bigint, nearPrice: number): { amount: string; amountUSD: string } {
+  const formatAmount = NEAR.toDecimal(amount, 2);
+  const amountUSD = (parseFloat(formatAmount) * nearPrice).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return {
+    amount: formatAmount,
+    amountUSD,
+  };
 }
 
 export function formatUSD(nearAmount: number, nearPrice: number, decimals = 2): string {
   const usdValue = nearAmount * nearPrice;
-  return `$${usdValue.toLocaleString('en-US', {
+  return `$${usdValue.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: decimals,
   })}`;
@@ -277,6 +263,5 @@ export async function fetchNearPrice(): Promise<number> {
 }
 
 export function calculateCurrentPositionInEpoch(epochStartHeight: number, currentHeight: number): number {
-  const EPOCH_LENGTH = 43200; // blocks
   return Math.floor(((currentHeight - epochStartHeight) * 100) / EPOCH_LENGTH);
 }

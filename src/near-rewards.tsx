@@ -29,7 +29,7 @@ export default function Command() {
   async function saveAccount(accountId: string, stakingPool?: string) {
     try {
       const accountEntry = stakingPool ? `${accountId}|${stakingPool}` : accountId;
-      const updatedAccounts = [...new Set([accountEntry, ...savedAccounts])].slice(0, 10); // Keep only 10 most recent
+      const updatedAccounts = [...new Set([accountEntry, ...savedAccounts])].slice(0, 10);
       await LocalStorage.setItem("saved-near-accounts", JSON.stringify(updatedAccounts));
       setSavedAccounts(updatedAccounts);
 
@@ -64,7 +64,6 @@ export default function Command() {
 
     const trimmedAccountId = accountId.trim();
 
-    // Basic validation for NEAR account ID format
     if (trimmedAccountId.length < 2 || trimmedAccountId.length > 64) {
       showToast({
         style: Toast.Style.Failure,
@@ -74,7 +73,6 @@ export default function Command() {
       return;
     }
 
-    // Check for invalid characters (NEAR account IDs can only contain lowercase letters, digits, and certain separators)
     if (!/^[a-z0-9._-]+$/.test(trimmedAccountId)) {
       showToast({
         style: Toast.Style.Failure,
@@ -88,8 +86,6 @@ export default function Command() {
 
     try {
       const service = new NearRewardsService();
-
-      // Quick validation to check if account exists
       const isValid = await service.validateAccount(trimmedAccountId);
 
       if (!isValid) {
@@ -102,8 +98,13 @@ export default function Command() {
         return;
       }
 
-      // Navigate to detailed view
-      push(<DetailedAccountView accountId={trimmedAccountId} stakingPool={stakingPool.trim() || undefined} onSaveAccount={saveAccount} />);
+      push(
+        <DetailedAccountView
+          accountId={trimmedAccountId}
+          stakingPool={stakingPool.trim() || undefined}
+          onSaveAccount={saveAccount}
+        />,
+      );
     } catch (error) {
       console.error("Error validating account:", error);
 
@@ -160,20 +161,17 @@ export default function Command() {
           placeholder="Choose a saved account"
           onChange={(value) => {
             if (value) {
-              // Parse the selected entry
-              const [accountId, pool] = value.split('|');
+              const [accountId, pool] = value.split("|");
               setAccountId(accountId);
-              setStakingPool(pool || '');
+              setStakingPool(pool || "");
             }
           }}
         >
           <Form.Dropdown.Item value="" title="Enter new account..." />
           {savedAccounts.map((accountEntry) => {
-            const [accountId, pool] = accountEntry.split('|');
+            const [accountId, pool] = accountEntry.split("|");
             const displayTitle = pool ? `${accountId} (Pool: ${pool})` : accountId;
-            return (
-              <Form.Dropdown.Item key={accountEntry} value={accountEntry} title={displayTitle} />
-            );
+            return <Form.Dropdown.Item key={accountEntry} value={accountEntry} title={displayTitle} />;
           })}
         </Form.Dropdown>
       )}
