@@ -154,7 +154,7 @@ The extension uses multiple RPC endpoints for reliability:
 ## Development
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 22+
 - TypeScript
 - Raycast CLI
 
