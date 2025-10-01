@@ -161,8 +161,8 @@ The extension uses multiple RPC endpoints for reliability:
 ### Setup
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd near-rewards
+git clone git@github.com:shelegdmitriy/near_rewards.raycast.git
+cd near_rewards.raycast
 
 # Install dependencies
 npm install
