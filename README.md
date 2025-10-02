@@ -250,6 +250,7 @@ For issues, feature requests, or questions:
 
 ## Acknowledgments
 
+- Inspired by the original [near_rewards](https://github.com/khorolets/near_rewards) package by @khorolets
 - Built with [NEAR JavaScript SDK](https://github.com/near/near-api-js)
 - Powered by [Raycast](https://raycast.com/)
 - Price data from [Binance API](https://binance-docs.github.io/apidocs/)
