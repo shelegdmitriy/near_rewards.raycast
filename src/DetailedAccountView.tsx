@@ -261,7 +261,7 @@ export function DetailedAccountView({ accountId, stakingPool, onSaveAccount }: D
           subtitle={`$${priceInfo.near_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} USD`}
           accessories={[
             {
-              text: `Updated: ${new Date(priceInfo.timestamp).toLocaleString()}`,
+              text: `Binance • ${new Date(priceInfo.timestamp).toLocaleString()}`,
               icon: Icon.Clock,
             },
           ]}
