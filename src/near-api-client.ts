@@ -271,6 +271,10 @@ export async function fetchNearPrice(): Promise<number> {
   }
 }
 
-export function calculateCurrentPositionInEpoch(epochStartHeight: number, currentHeight: number, epochLength: number): number {
+export function calculateCurrentPositionInEpoch(
+  epochStartHeight: number,
+  currentHeight: number,
+  epochLength: number,
+): number {
   return Math.floor(((currentHeight - epochStartHeight) * 100) / epochLength);
 }

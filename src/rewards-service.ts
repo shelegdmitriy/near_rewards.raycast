@@ -10,13 +10,17 @@ export class NearRewardsService {
     this.client = new NearRewardsClient(rpcEndpoint);
   }
 
-  async getEpochInfo(): Promise<{ epochInfo: EpochValidatorInfo; currentBlock: BlockResult, epochLength: number }> {
-    const [currentBlock, validators, epochLength] = await Promise.all([this.client.getFinalBlock(), this.client.getValidators(), this.client.getEpochLength()]);
+  async getEpochInfo(): Promise<{ epochInfo: EpochValidatorInfo; currentBlock: BlockResult; epochLength: number }> {
+    const [currentBlock, validators, epochLength] = await Promise.all([
+      this.client.getFinalBlock(),
+      this.client.getValidators(),
+      this.client.getEpochLength(),
+    ]);
 
     return {
       epochInfo: validators,
       currentBlock: currentBlock,
-      epochLength
+      epochLength,
     };
   }
 
